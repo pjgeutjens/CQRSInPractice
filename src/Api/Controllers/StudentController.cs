@@ -1,10 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Generic;
 using Logic.Dtos;
 using CSharpFunctionalExtensions;
 using Logic.Students;
-using Logic.Utils;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers
@@ -12,17 +9,12 @@ namespace Api.Controllers
     [Route("api/students")]
     public sealed class StudentController : BaseController
     {
-        private readonly UnitOfWork _unitOfWork;
         private readonly Messages _messages;
-        private readonly StudentRepository _studentRepository;
-        private readonly CourseRepository _courseRepository;
 
-        public StudentController(UnitOfWork unitOfWork, Messages messages)
+
+        public StudentController(Messages messages)
         {
-            _unitOfWork = unitOfWork;
             _messages = messages;
-            _studentRepository = new StudentRepository(unitOfWork);
-            _courseRepository = new CourseRepository(unitOfWork);
         }
 
         [HttpGet]
@@ -58,14 +50,14 @@ namespace Api.Controllers
 
             Result result = _messages.Dispatch(command);
 
-            return result.IsSuccess ? Ok() : Error(result.Error);
+            return FromResult(result);
         }
 
         [HttpDelete("{id}")]
         public IActionResult Unregister(long id)
         {
             Result result = _messages.Dispatch(new UnregisterCommand(id));
-            return result.IsSuccess ? Ok() : Error(result.Error);
+            return FromResult(result);
 
         }
 
@@ -78,76 +70,38 @@ namespace Api.Controllers
                 );
 
             Result result = _messages.Dispatch(command);
-            return result.IsSuccess ? Ok() : Error(result.Error);
+            return FromResult(result);
         }
 
         [HttpPut("{id}/enrollments/{enrollmentNumber}")]
         public IActionResult Transfer(long id, int enrollmentNumber, [FromBody] StudentTransferDto dto )
         {
-            Student student = _studentRepository.GetById(id);
-            if (student == null)
-            {
-                return Error($"No student with id '{id}'");
-            }
+            var command = new TransferCommand(
+                id, enrollmentNumber, dto.Course, dto.Grade);
+            Result result = _messages.Dispatch(command);
 
-            Course course = _courseRepository.GetByName(dto.Course);
-            if (course == null)
-            {
-                return Error($"Course is incorrect: '{dto.Course}'");
-            }
-
-            bool success = Enum.TryParse(dto.Grade, out Grade grade);
-            if (!success)
-            {
-                return Error($"Grade is incorrect: '{dto.Grade}'");
-            }
-
-            Enrollment enrollment = student.GetEnrollment(enrollmentNumber);
-            if (enrollment == null)
-            {
-                return Error($"No enrollment found with number: '{enrollmentNumber}'");
-            }
-
-            enrollment.Update(course, grade);
-            _unitOfWork.Commit();
-            return Ok();
-
+            return FromResult(result);
         }
 
         [HttpPost("{id}/enrollments/{enrollmentNumber}/deletion")]
         public IActionResult Disenroll(long id, int enrollmentNumber, [FromBody] StudentDisenrollmentDto dto)
         {
-            Student student = _studentRepository.GetById(id);
-            if (student == null)
-            {
-                return Error($"No student with id '{id}'");
-            }
+            var command = new DisenrollCommand(id, enrollmentNumber, dto.Comment);
+            Result result = _messages.Dispatch(command);
 
-            if (string.IsNullOrWhiteSpace(dto.Comment))
-                return Error("Disenrollment comment is required");
-
-            Enrollment enrollment = student.GetEnrollment(enrollmentNumber);
-            if (enrollment == null)
-            {
-                return Error($"No enrollment found with number: '{enrollmentNumber}'");
-            }
-
-            student.RemoveEnrollment(enrollment, dto.Comment);
-
-            _unitOfWork.Commit();
-            return Ok();
+            return FromResult(result);
 
         }
 
         [HttpPut("{id}")]
         public IActionResult EditPersonalInfo(long id, [FromBody] StudentPersonalInfoDto dto )
         {
-            var command = new EditPersonalInfoCommand(id, dto.Email, dto.Name);
+            var command = new EditPersonalInfoCommand(id, dto.Name, dto.Email);
            
 
             Result result = _messages.Dispatch(command);
 
-            return result.IsSuccess ?  Ok() : Error(result.Error);
+            return FromResult(result);
         }
     }
 }
