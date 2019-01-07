@@ -1,4 +1,5 @@
 ﻿using CSharpFunctionalExtensions;
+using Logic.AppServices;
 using System;
 
 namespace Logic.Students

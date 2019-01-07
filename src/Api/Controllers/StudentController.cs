@@ -3,6 +3,7 @@ using Logic.Dtos;
 using CSharpFunctionalExtensions;
 using Logic.Students;
 using Microsoft.AspNetCore.Mvc;
+using Logic.AppServices;
 
 namespace Api.Controllers
 {
